@@ -12,6 +12,11 @@
   "tauri": {
     "allowlist": {
       "all": false,
+      "clipboard": {
+        "all": false,
+        "readText": false,
+        "writeText": false
+      },
       "shell": {
         "all": false,
         "open": true
@@ -35,7 +40,9 @@
     "windows": [
       {
         "fullscreen": false,
-        "resizable": true,
+        "resizable": false,
+        "decorations": true,
+        "fileDropEnabled": false,
         "title": "tiny-image",
         "width": 800,
         "height": 600

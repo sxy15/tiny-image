@@ -1,10 +1,12 @@
 <script setup lang="ts">
-
+  import addImage from './components/add-image.vue';
+  import imgList from './components/img-list.vue';
 </script>
 
 <template>
   <div>
-    <h1>Welcome to Tauri!</h1>
+    <add-image />
+    <img-list />
   </div>
 </template>
 
