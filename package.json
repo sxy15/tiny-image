@@ -1,5 +1,5 @@
 {
-  "name": "tiny-img",
+  "name": "tiny-image",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,16 +10,15 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "vue": "^3.5.13",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
-    "vue": "^3.5.13"
+    "@tauri-apps/plugin-opener": "^2"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
     "@vitejs/plugin-vue": "^5.2.1",
-    "sass-embedded": "^1.85.1",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
-    "vue-tsc": "^2.1.10"
+    "vue-tsc": "^2.1.10",
+    "@tauri-apps/cli": "^2"
   }
 }
