@@ -5,15 +5,18 @@
     </div>
     <div class="main-section2">
       <div class="head">
-        <div>共节省0Kb</div>
-        <div class="download" @click="download">下载</div>
+        <div>共节省{{ saveAllSize }}</div>
+        <div :class="['download', compressed === false ? 'disabled' : '']" @click="download">下载</div>
       </div>
       <div class="list">
         <div class="item" v-for="item in imageCache">
-          <div :class="['item-status', item.compressed ? 'item-status-compressed' : '']"><i></i></div>
+          <div :class="['item-status', item.compressed === true ? 'suc' : (item.compressed === false ? 'fail' : '')]">
+            <i></i>
+          </div>
           <div class="item-name">{{ item.name }}</div>
           <div class="item-size">{{ item.size }}</div>
-          <div class="item-thrift">{{ item.thrift }}</div>
+          <div class="item-compress">{{ item.compressedSize || '-' }}</div>
+          <div class="item-save">{{ saveRate(item) }}%</div>
         </div>
       </div>
     </div>
@@ -21,16 +24,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, Ref } from 'vue'
-import { BaseDirectory, readDir, readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
+import { ref, Ref, computed } from 'vue'
+import { BaseDirectory, readDir, readFile, writeFile, mkdir, lstat } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog';
-import { fileToUint8Array, isImageFile } from '../utils/index';
+import { byteToSize, fileToUint8Array, isDotFile, isImageFile } from '../utils/index';
 import tiny from '../lib/tiny.ts'
 
 const imageCache: Ref<any[]> = ref([])
 const folderName = ref('')
 const sourceFolder = ref('')
 const folderList = new Set<string>()
+const compressed = ref(false)
+const saveAllSize = computed(() => {
+  const totalSize =  imageCache.value.reduce((prev, curr) => {
+    return prev + curr._size - (curr._compressedSize || 0)
+  }, 0)
+  
+  return byteToSize(totalSize)
+})
+
+// 节省比例 20%
+const saveRate = (item: any) => {
+  return Math.floor((item._size - (item._compressedSize || item._size)) / item._size * 100)
+}
+
 const openDialog = async () => {
   const folder = await open({
     multiple: false,
@@ -42,12 +59,14 @@ const openDialog = async () => {
   }
 
   imageCache.value = []
+  compressed.value = false
   sourceFolder.value = folder
   const name: string = folder.split('/').pop()!
   folderName.value = name
   folderList.clear()
   await resolveFolder(folder)
   await compressImage()
+  compressed.value = true
 }
 
 const resolveFolder = async (folder: string) => {
@@ -55,13 +74,17 @@ const resolveFolder = async (folder: string) => {
   if (!files.length) return
   for (const file of files) {
     const path = `${folder}/${file.name}`
-    if (file.isFile) {
+    if (file.isFile && !isDotFile(file.name)) {
+      const fileInfo = await lstat(path)
       imageCache.value.push({
         name: file.name,
         path,
-        compressed: false
+        size: byteToSize(fileInfo.size),
+        _size: fileInfo.size,
+        compressed: isImageFile(file.name) ? 'loading' : false,
       })
     }
+
     if (file.isDirectory) {
       await resolveFolder(path)
     }
@@ -78,14 +101,15 @@ const compressImage = async () => {
     }
     const file = await readFile(item.path)
     const compressedFile: any = await tiny(new Blob([file])) // File
-
     const idx = imageCache.value.findIndex((i) => i.path === item.path)
 
     imageCache.value.splice(idx, 1, {
       ...item,
       compressed: true,
       path: path ? `${path}/${item.name}` : `/${item.name}`,
-      compressedFile
+      compressedFile,
+      compressedSize: byteToSize(compressedFile.size),
+      _compressedSize: compressedFile.size,
     })
   })
 
@@ -112,6 +136,7 @@ const generateImage = async () => {
 }
 
 const download = async () => {
+  if (compressed.value === false) return
   await generateImage()
 
   console.log('success')
@@ -155,7 +180,7 @@ const download = async () => {
       height: 35px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       font-size: 12px;
 
       .download {
@@ -169,6 +194,12 @@ const download = async () => {
         color: #141414;
         background-color: #fff;
         border: 1px dashed #33f343;
+        margin-left: 10px;
+
+        &.disabled {
+          opacity: .5;
+          cursor: not-allowed;
+        }
       }
     }
 
@@ -185,7 +216,7 @@ const download = async () => {
     .item {
       display: flex;
       align-items: center;
-      height: 35px;
+      min-height: 35px;
       font-size: 14px;
       padding: 0 10px;
 
@@ -206,24 +237,61 @@ const download = async () => {
         i {
           width: 16px;
           height: 16px;
-          background: url('../assets/chahao.svg') no-repeat center/contain;
+          background: url('../assets/ing.svg') no-repeat center/contain;
+          animation: rotate 3s linear infinite;
         }
 
-        &-compressed {
+        &.suc {
           i {
             background: url('../assets/duihao.svg') no-repeat center/contain;
+            animation: none;
+          }
+        }
+
+        &.fail {
+          i {
+            background: url('../assets/chahao.svg') no-repeat center/contain;
+            animation: none;
           }
         }
       }
 
       &-name {
         flex: 1;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 0 10px;
       }
 
-      &-size {}
+      &-size {
+        flex-shrink: 0;
+        width: 100px;
+        text-align: left;
+      }
 
-      &-thrift {}
+      &-compress {
+        flex-shrink: 0;
+        width: 100px;
+        text-align: left;
+      }
+
+      &-save {
+        flex-shrink: 0;
+        width: 40px;
+        text-align: left;
+      }
     }
+  }
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
 </style>
