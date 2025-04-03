@@ -1,3 +1,3 @@
-### tiny-img
+# tiny-img
 
 ![alt text](image.png)
