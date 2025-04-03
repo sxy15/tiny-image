@@ -1,12 +1,10 @@
 <script setup lang="ts">
-  import addImage from './components/add-image.vue';
-  import imgList from './components/img-list.vue';
+  import imageCompress from './components/compress-image.vue';
 </script>
 
 <template>
   <div>
-    <add-image />
-    <img-list />
+    <image-compress />
   </div>
 </template>
 
